@@ -308,7 +308,7 @@ struct arena_base : padded<intrusive_list_node> {
     private:
         std::atomic<T> value;
     };
-    using pool_mask_type = pool_mask_template<int, 16>;
+    using pool_mask_type = pool_mask_template<char, 16>;
     pool_mask_type* pool_mask;
 #endif
 

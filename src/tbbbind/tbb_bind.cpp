@@ -261,17 +261,23 @@ public:
     typedef hwloc_const_cpuset_t const_affinity_mask;
     class raii_affinity_mask {
     public:
-        raii_affinity_mask() {
+        raii_affinity_mask(hwloc_topology_t topology) {
             mask = hwloc_bitmap_alloc();
+            hwloc_get_last_cpu_location(topology, mask, HWLOC_CPUBIND_THREAD);
+            cpu_number = hwloc_bitmap_first(mask);
         }
         ~raii_affinity_mask() {
             hwloc_bitmap_free(mask);
+        }
+        int get_cpu_number() {
+            return cpu_number;
         }
         operator affinity_mask() {
             return mask;
         }
     private:
         affinity_mask mask;
+        int cpu_number;
     };
 
     bool is_topology_parsed() { return initialization_state == topology_parsed; }
@@ -400,12 +406,9 @@ public:
     }
 
     int get_last_cpu_location() {
-        // TODO: every call of this function create allocation, try to fix this
-        raii_affinity_mask last_cpu_location{};
-        int err = hwloc_get_last_cpu_location(topology, last_cpu_location, HWLOC_CPUBIND_THREAD);
-        __TBB_ASSERT_EX((int)err == 0 && hwloc_bitmap_weight(last_cpu_location) == 1, "hwloc_bitmap weight error");
-        int cpu_number = hwloc_bitmap_first(last_cpu_location);
-        return cpu_number;
+        __TBB_ASSERT(is_topology_parsed(), "Trying to get access to uninitialized system_topology");
+        thread_local raii_affinity_mask last_cpu_location{topology};
+        return last_cpu_location.get_cpu_number();
     }
 
     int my_current_numa_node() {
